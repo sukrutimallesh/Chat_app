@@ -11,8 +11,12 @@ app.use(express.json());
 mongoose.connect(process.env.MONGO_URL, {
     useNewUrlParser: true,
     useUnifiedTopology: true
-}).then(() => {
+})
+.then(() => {
     console.log("DB connected successfully")
+})
+.catch((err) => {
+    console.log(err.message);
 });
 
 const server = app.listen(process.env.PORT, () => {
