@@ -64,6 +64,7 @@ export default function Register() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (handleValidation()) {
+      console.log("in validation", registerRoute)
       const { email, username, password } = values;
       const { data } = await axios.post(registerRoute, {
         username,
@@ -76,7 +77,7 @@ export default function Register() {
       }
       if (data.status === true) {
         localStorage.setItem(
-          process.env.REACT_APP_LOCALHOST_KEY,
+          'chat-app-user',
           JSON.stringify(data.user)
         );
         navigate("/");
