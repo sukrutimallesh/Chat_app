@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import styled from "styled-components";
 import { useNavigate, Link } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { supabase } from "../utils/supabaseClient";
+import { registerRoute } from "../utils/APIRoutes.js";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -63,39 +64,24 @@ export default function Register() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (handleValidation()) {
+      console.log("in validation", registerRoute)
       const { email, username, password } = values;
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data } = await axios.post(registerRoute, {
+        username,
         email,
         password,
       });
-      if (authError) {
-        toast.error(authError.message, toastOptions);
-        return;
-      }
 
-      // Create profile
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: authData.user.id,
-        username,
-        email,
-        avatar_image: '',
-        is_avatar_set: false,
-      });
-      if (profileError) {
-        toast.error(profileError.message, toastOptions);
-        return;
+      if (data.status === false) {
+        toast.error(data.msg, toastOptions);
       }
-
-      const user = {
-        id: authData.user.id,
-        username,
-        email,
-        avatarImage: '',
-        isAvatarImageSet: false,
-      };
-      localStorage.setItem('chat-app-user', JSON.stringify(user));
-      navigate('/');
+      if (data.status === true) {
+        localStorage.setItem(
+          'chat-app-user',
+          JSON.stringify(data.user)
+        );
+        navigate("/");
+      }
     }
   };
 

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: snappy-chat-server
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URL
+        sync: false
