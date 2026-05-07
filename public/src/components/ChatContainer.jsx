@@ -3,67 +3,53 @@ import styled from "styled-components";
 import ChatInput from "./ChatInput";
 import Logout from "./Logout";
 import { v4 as uuidv4 } from "uuid";
-import axios from "axios";
-import { sendMessageRoute, recieveMessageRoute } from "../utils/APIRoutes";
+import { supabase } from "../utils/supabaseClient";
 
-export default function ChatContainer({ currentChat, socket }) {
+export default function ChatContainer({ currentChat, currentUser }) {
   const [messages, setMessages] = useState([]);
   const scrollRef = useRef();
-  const [arrivalMessage, setArrivalMessage] = useState(null);
-
-  useEffect(async () => {
-    const data = await JSON.parse(
-      localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-    );
-    const response = await axios.post(recieveMessageRoute, {
-      from: data._id,
-      to: currentChat._id,
-    });
-    setMessages(response.data);
-  }, [currentChat]);
 
   useEffect(() => {
-    const getCurrentChat = async () => {
-      if (currentChat) {
-        await JSON.parse(
-          localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-        )._id;
-      }
+    if (!currentUser || !currentChat) return;
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${currentChat.id}),and(sender_id.eq.${currentChat.id},receiver_id.eq.${currentUser.id})`)
+        .order('created_at', { ascending: true });
+      setMessages((data || []).map(m => ({
+        fromSelf: m.sender_id === currentUser.id,
+        message: m.message,
+      })));
     };
-    getCurrentChat();
-  }, [currentChat]);
+    fetchMessages();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel(`chat-${currentUser.id}-${currentChat.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${currentUser.id}`,
+      }, (payload) => {
+        if (payload.new.sender_id === currentChat.id) {
+          setMessages(prev => [...prev, { fromSelf: false, message: payload.new.message }]);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentChat, currentUser]);
 
   const handleSendMsg = async (msg) => {
-    const data = await JSON.parse(
-      localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-    );
-    socket.current.emit("send-msg", {
-      to: currentChat._id,
-      from: data._id,
-      msg,
-    });
-    await axios.post(sendMessageRoute, {
-      from: data._id,
-      to: currentChat._id,
+    await supabase.from('messages').insert({
+      sender_id: currentUser.id,
+      receiver_id: currentChat.id,
       message: msg,
     });
-
-    const msgs = [...messages];
-    msgs.push({ fromSelf: true, message: msg });
-    setMessages(msgs);
+    setMessages(prev => [...prev, { fromSelf: true, message: msg }]);
   };
-
-  useEffect(() => {
-    if (socket.current) {
-      socket.current.on("msg-recieve", (msg) => {
-        setArrivalMessage({ fromSelf: false, message: msg });
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    arrivalMessage && setMessages((prev) => [...prev, arrivalMessage]);
-  }, [arrivalMessage]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -75,7 +61,7 @@ export default function ChatContainer({ currentChat, socket }) {
         <div className="user-details">
           <div className="avatar">
             <img
-              src={`data:image/svg+xml;base64,${currentChat.avatarImage}`}
+              src={`data:image/svg+xml;base64,${currentChat.avatar_image}`}
               alt=""
             />
           </div>

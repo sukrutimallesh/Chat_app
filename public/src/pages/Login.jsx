@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import styled from "styled-components";
 import { useNavigate, Link } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { loginRoute } from "../utils/APIRoutes";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -43,21 +42,36 @@ export default function Login() {
     event.preventDefault();
     if (validateForm()) {
       const { username, password } = values;
-      const { data } = await axios.post(loginRoute, {
-        username,
+
+      // Look up email from username
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email, id, username, avatar_image, is_avatar_set')
+        .eq('username', username)
+        .single();
+      if (profileError || !profileData) {
+        toast.error('Incorrect Username or Password', toastOptions);
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: profileData.email,
         password,
       });
-      if (data.status === false) {
-        toast.error(data.msg, toastOptions);
+      if (authError) {
+        toast.error('Incorrect Username or Password', toastOptions);
+        return;
       }
-      if (data.status === true) {
-        localStorage.setItem(
-          process.env.REACT_APP_LOCALHOST_KEY,
-          JSON.stringify(data.user)
-        );
 
-        navigate("/");
-      }
+      const user = {
+        id: profileData.id,
+        username: profileData.username,
+        email: profileData.email,
+        avatarImage: profileData.avatar_image,
+        isAvatarImageSet: profileData.is_avatar_set,
+      };
+      localStorage.setItem('chat-app-user', JSON.stringify(user));
+      navigate('/');
     }
   };
 
