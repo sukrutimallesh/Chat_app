@@ -5,7 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { loginRoute } from "../utils/APIRoutes";
+import { loginRoute, guestRoute } from "../utils/APIRoutes";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -37,6 +37,21 @@ export default function Login() {
       return false;
     }
     return true;
+  };
+
+  const handleGuestLogin = async () => {
+    try {
+      const { data } = await axios.get(guestRoute);
+      if (data.status === true) {
+        localStorage.setItem(
+          process.env.REACT_APP_LOCALHOST_KEY,
+          JSON.stringify(data.user)
+        );
+        navigate("/");
+      }
+    } catch (err) {
+      toast.error("Could not start guest session. Please try again.", toastOptions);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -86,6 +101,10 @@ export default function Login() {
           <span>
             Don't have an account ? <Link to="/register">Create One.</Link>
           </span>
+          <div className="divider"><span>or</span></div>
+          <button type="button" className="guest-btn" onClick={handleGuestLogin}>
+            👀 Continue as Guest
+          </button>
         </form>
       </FormContainer>
       <ToastContainer />
@@ -158,6 +177,39 @@ const FormContainer = styled.div`
       color: #4e0eff;
       text-decoration: none;
       font-weight: bold;
+    }
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    &::before,
+    &::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #ffffff30;
+    }
+    span {
+      color: #ffffff60;
+      font-size: 0.8rem;
+      text-transform: lowercase;
+    }
+  }
+  .guest-btn {
+    background-color: transparent;
+    color: #9a86f3;
+    padding: 1rem 2rem;
+    border: 0.1rem solid #9a86f3;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 0.4rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    transition: all 0.3s ease-in-out;
+    &:hover {
+      background-color: #9a86f3;
+      color: white;
     }
   }
 `;
